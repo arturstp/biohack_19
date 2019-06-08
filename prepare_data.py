@@ -90,9 +90,10 @@ def main():
     test_Y = test_data[:, 12]
 
     model = Sequential()
-    #add embedding 
-    # model.add(Embedding(26, 26))
+    #add embedding
+    # model.add(Embedding(21, 21, input_length=12))
     model.add(Dense(22, input_dim=12, activation='relu'))
+    # model.add(Dense(22, activation='relu'))
     model.add(Dense(8, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
 
