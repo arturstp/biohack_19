@@ -43,7 +43,7 @@ mhc_to_num = {
 }
 
 def amino_acid_to_array(char):
-    arr =  np.array(read_amino_acid_parametrs().loc[read_amino_acid_parametrs().Litera == 'A'])[:,1:]
+    arr =  np.array(read_amino_acid_parametrs().loc[read_amino_acid_parametrs().Litera == char])[:,1:]
     return arr
 
 
