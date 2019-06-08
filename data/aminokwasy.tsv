@@ -1,0 +1,21 @@
+nazwa	litera 	Alifatyczne	Zasadowe	Siarkowe	iminokwasy	Kwasowe	Amidy	Aromatyczne				grupa OH	universal
+Alanina	A	1	0	0	0	0	0	0				0	0.6193548387
+Arginina	R	0	1	0	0	0	0	0				0	0.264516129
+Kwas asparaginowy	D	0	0	0	0	1	0	0				0	0
+Asparagina	N	0	0	0	0	0	1	0				0	0.1741935484
+Cysteina	C	0	0	1	0	0	0	0				0	0.6709677419
+Fenyloalanina	F	0	0	0	0	0	0	1				0	1
+Glicyna	G	1	0	0	0	0	0	0				0	0.3548387097
+Kwas glutaminowy	E	0	0	0	0	1	0	0				0	0.1548387097
+Glutamina	Q	0	0	0	0	0	1	0				0	0.2903225806
+Histydyna	H	0	1	0	0	0	0	0				0	0.4064516129
+Leucyna	L	1	0	0	0	0	0	0				0	0.9806451613
+Izoleucyna	I	1	0	0	0	0	0	0				0	0.9935483871
+Lizyna	K	0	1	0	0	0	0	0				0	0.2064516129
+Metionina	M	0	0	1	0	0	0	0				0	0.8322580645
+Prolina	P	0	0	0	1	0	0	0				0	0.95
+Seryna	S	1	0	0	0	0	0	0				1	0.3225806452
+Treonina	T	1	0	0	0	0	0	0				1	0.4387096774
+Tryptofan	W	0	0	0	0	0	0	1				0	0.9806451613
+Tyrozyna	Y	0	0	0	0	0	0	1				1	0.7612903226
+Walina	V	1	0	0	0	0	0	0				0	0.8451612903
