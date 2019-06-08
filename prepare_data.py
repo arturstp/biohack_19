@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.metrics import auc
 from sklearn.metrics import roc_curve
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Embedding
+from keras.layers import Dense, Activation, Embedding, Flatten
 import matplotlib.pyplot as plt
 
 
@@ -91,9 +91,10 @@ def main():
 
     model = Sequential()
     #add embedding
-    # model.add(Embedding(21, 21, input_length=12))
-    model.add(Dense(22, input_dim=12, activation='relu'))
-    # model.add(Dense(22, activation='relu'))
+    model.add(Embedding(21, 21, input_length=12))
+    # model.add(Dense(22, input_dim=12, activation='relu'))
+    model.add(Flatten())
+    model.add(Dense(22, activation='relu'))
     model.add(Dense(8, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
 
