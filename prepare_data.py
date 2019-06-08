@@ -43,13 +43,13 @@ mhc_to_num = {
 }
 
 def amino_acid_to_array(char):
-    arr =  np.array(read_amino_acid_parametrs().loc[arr.Litera == 'A'])[:,1:]
+    arr =  np.array(read_amino_acid_parametrs().loc[read_amino_acid_parametrs().Litera == 'A'])[:,1:]
     return arr
 
 
 def read_amino_acid_parametrs():
     amino_acid_parametrs = pd.read_csv('data/amino_acid.csv')
-    arr = pd.DataFrame(df, columns=['Litera', 'Alifatyczne', 'Zasadowe', 'Siarkowe', 'Lminokwasy', 'Kwasowe', 'Amidy', 'Aromatyczne', 'Grupa_OH', 'Universal'])
+    arr = pd.DataFrame(amino_acid_parametrs, columns=['Litera', 'Alifatyczne', 'Zasadowe', 'Siarkowe', 'Lminokwasy', 'Kwasowe', 'Amidy', 'Aromatyczne', 'Grupa_OH', 'Universal'])
     return arr
 
 
@@ -91,10 +91,11 @@ def get_inputs():
 def create_model():
     model = Sequential()
     # add embedding
-    model.add(Embedding(21, 42, input_length=12))
+    model.add(Embedding(21, 21, input_length=12))
     # model.add(Dense(22, input_dim=12, activation='relu'))
     model.add(Flatten())
-    model.add(Dense(24, activation='relu'))
+    model.add(Dense(22, activation='relu'))
+    model.add(Dense(8, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model

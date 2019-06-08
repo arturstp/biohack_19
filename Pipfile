@@ -11,6 +11,8 @@ keras = "*"
 matplotlib = "*"
 xlrd = "*"
 xlwt = "*"
+sklearn = "*"
+matplotlib = "*"
 
 [dev-packages]
 
