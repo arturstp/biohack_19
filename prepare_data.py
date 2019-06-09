@@ -5,6 +5,7 @@ from sklearn.metrics import roc_curve
 from sklearn.model_selection import StratifiedKFold
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Embedding, Flatten
+from keras.callbacks import EarlyStopping
 import matplotlib.pyplot as plt
 
 
@@ -91,13 +92,22 @@ def get_inputs():
 def create_model():
     model = Sequential()
     # add embedding
-    model.add(Embedding(21, 21, input_length=12))
+    model.add(Embedding(21, 10, input_length=12))
+    print('MODEL OUTPUT = ')
+    print(model.output_shape)
     # model.add(Dense(22, input_dim=12, activation='relu'))
     model.add(Flatten())
-    model.add(Dense(22, activation='relu'))
-    model.add(Dense(8, activation='relu'))
+    # model.add(Dropout(0.99))
+    print('now after flatten: ')
+    print('MODEL OUTPUT = ')
+    print(model.output_shape)
+    model.add(Dense(32, activation='relu'))
+    print('now after dense:')
+    print('MODEL OUTPUT = ')
+    print(model.output_shape)
     model.add(Dense(1, activation='sigmoid'))
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    # print(model.get_config())
     return model
 
 
@@ -122,7 +132,7 @@ def main():
     history_best = None
     fpr_kt = None
     tpr_kt = None
-
+    all_auc = []
     for index, (train_indices, val_indices) in enumerate(skf.split(X, Y)):
         print("Training on fold " + str(index + 1) + "/10...")
 
@@ -137,7 +147,8 @@ def main():
         print ("Training new iteration on " + str(xtrain.shape[0])\
               + " training samples, " + str(xval.shape[0]) + " validation samples, this may be a while...")
 
-        history = model.fit(xtrain, ytrain, epochs=EPOCHS, batch_size=32, validation_split=0.2)
+        es = EarlyStopping(monitor='val_loss', mode='min', patience=3, verbose=1)
+        history = model.fit(xtrain, ytrain, epochs=EPOCHS, batch_size=32, validation_data=(xval, yval), callbacks=[es])
 
         ypred = model.predict(xval).ravel()
 
@@ -151,26 +162,9 @@ def main():
             auc_best = auc_k
             print('NEW BEST MODEL HISTORY RECORDED')
 
+        all_auc.append(auc_k)
 
-
-
-    # model = create_model()
-    #
-    #
-    # print('starting fitting')
-    # H = model.fit(train_X, train_Y, epochs=EPOCHS, batch_size=32, shuffle=True, validation_split=0.2)  #test me..
-    #
-    # scores = model.evaluate(test_X, test_Y)
-    #
-    # # print("\n%s: %.2f%%" % (model.metrics_names[1], scores[1] * 100))
-    #
-    # y_pred_keras = model.predict(test_X).ravel()
-    #
-    # fpr_keras, tpr_keras, thresholds_keras = roc_curve(test_Y, y_pred_keras)
-    #
-    # print(y_pred_keras[:10])
-    # auc_keras = auc(fpr_keras, tpr_keras)
-
+    print("AUC: %.2f%% (+/- %.2f%%)" % (np.mean(all_auc), np.std(all_auc)))
     plt.figure(1)
     plt.plot([0, 1], [0, 1], 'k--')
     plt.plot(fpr_kt, tpr_kt, label='Keras (area = {:.3f})'.format(auc_best))
@@ -178,10 +172,9 @@ def main():
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
     plt.legend(loc='best')
-    # plt.show()
 
     plt.figure(2)
-    N = np.arange(0, EPOCHS)
+    N = np.arange(0, len(history_best.history["loss"]))
     plt.style.use("ggplot")
     plt.figure()
     plt.plot(N, history_best.history["loss"], label="train_loss")
@@ -193,10 +186,6 @@ def main():
     plt.ylabel("Loss/Accuracy")
     plt.legend()
     plt.show()
-    # plt.savefig(args["plot"])
-
-
-
 
 
 if __name__ == "__main__":
