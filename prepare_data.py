@@ -1,13 +1,17 @@
 import pandas as pd
 import numpy as np
+import sys
 from sklearn.metrics import auc
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import StratifiedKFold
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Embedding, Flatten
+from keras.layers import Dense, Activation, Embedding, Flatten, Conv1D, MaxPool1D, GlobalAveragePooling1D, Dropout, concatenate
 from keras.callbacks import EarlyStopping
+from keras import Input
+from keras import Model
 import matplotlib.pyplot as plt
 
+# converting amino_acids to set of parameters
 def read_amino_acid_parametrs():
     amino_acid_parametrs = pd.read_csv('data/amino_acid.csv')
     arr = pd.DataFrame(amino_acid_parametrs, columns=['Litera', 'Alifatyczne', 'Zasadowe', 'Siarkowe', 'Lminokwasy', 'Kwasowe', 'Amidy', 'Aromatyczne', 'Grupa_OH', 'Universal'])
@@ -53,26 +57,19 @@ mhc_to_num = {
 }
 
 
-
-
-#param count = 9
-
-
 def convertToNum(row):
-    peptide_in_num = np.empty((1, 0))
+    peptide_in_num = np.empty((0, 10))
     peptide_in_num.ravel()
-    # print(peptide_in_num.shape)
     text = row.loc['Peptide']
     i = 0
     for char in text:
-        a = char_to_num[char]
         b = np.array(char_to_num[char])
         b.ravel()
-        peptide_in_num = np.hstack((peptide_in_num, b))
+        b = np.append(b, mhc_to_num[row.loc['MHC']])
+        peptide_in_num = np.vstack((peptide_in_num, b))
         i += 1
-    # print(peptide_in_num)
-    return np.concatenate((peptide_in_num, mhc_to_num[row.loc['MHC']], row.loc['Immunogenicity']), axis=None)
 
+    return peptide_in_num, row.loc['Immunogenicity']
 
 def read_data(path):
     return pd.read_csv(path, sep='\t')
@@ -85,57 +82,71 @@ def add_zeros(data):
             text = text[:len(text)//2] + 'X' + text[len(text)//2:]
         data.at[index, 'Peptide'] = text
 
-def get_inputs():
-    all_data = read_data('./data/train.tsv')
+def get_inputs(filename):
+    all_data = read_data(filename)
 
     add_zeros(all_data)
 
-    data_new = np.empty([all_data.shape[0], 101])  # get 13 not by constant! - and change/// 102 = 11x9 + mhc+react
+    acids_data = np.empty([all_data.shape[0], 11, 10])
+    react_data = np.empty((all_data.shape[0], 1))
     for index, row in all_data.iterrows():
-        numbers = convertToNum(row)
+        # acids_data[index], mhc_data[index], react_data[index] = convertToNum(row)
+        acids_data[index], react_data[index] = convertToNum(row)
         # print(numbers)
 
-        data_new[index] = numbers
-
-    return data_new
+        # data_new[index] = numbers
+    return acids_data, react_data
+    # return acids_data, mhc_data, react_data
 
 
 def create_model():
-    model = Sequential()
-    # add embedding
-    # model.add(Embedding(21, 10, input_length=100))
-    print('MODEL OUTPUT = ')
-    # print(model.output_shape)
-    # model.add(Dense(22, input_dim=12, activation='relu'))
-    # model.add(Flatten())
-    # model.add(Dropout(0.99))
-    print('now after flatten: ')
-    print('MODEL OUTPUT = ')
-    # print(model.output_shape)
-    model.add(Dense(32, activation='relu', input_dim=100))
-    # model.add(Dense(8, activation='relu'))
-    print('now after dense:')
-    print('MODEL OUTPUT = ')
-    print(model.output_shape)
-    model.add(Dense(1, activation='sigmoid'))
+
+    input_acid = Input(shape=(11,9))
+    input_mhc = Input(shape=(1,))
+
+    x = Conv1D(filters=64, kernel_size=3, activation='relu')(input_acid)
+    x = Dense(16, activation='relu')(x)
+    x = Dropout(0.2)(x)
+    x = Flatten()(x)
+    x = Model(inputs=input_acid, outputs=x)
+
+    y = Embedding(7, 14, input_length=1)(input_mhc)
+    y = Flatten()(y)
+    y = Dense(16, activation='relu')(y)
+    y = Model(inputs=input_mhc, outputs=y)
+
+    combined = concatenate([x.output, y.output])
+
+    z = Dense(10, activation="relu")(combined)
+    z = Dense(1, activation="sigmoid")(z)
+
+    model = Model(inputs=[x.input, y.input], outputs=z)
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    # print(model.get_config())
     return model
 
+# pass vector with amino_acids and mhc ids and get them separately
+def split_acids_mhc(data):
+    x_main = data[:, :, :9]
+    x_mhc = data[:, -1, 9:]
+    return x_main, x_mhc
 
-def main():
-    EPOCHS = 12
+def main(argv):
+    EPOCHS = 20
     SPLITS = 10
-    data = get_inputs()  #todo: pass filename
-
-    X = data[:, 0:100]
-    Y = data[:, 100]
+    # data, mhc, react = get_inputs()  #todo: pass filename
+    train_set_path = './data/train.tsv'
+    data, react = get_inputs(train_set_path)
+    X = data
+    # X1 = data
+    # X2 = mhc
+    Y = react
 
     skf = StratifiedKFold(n_splits=SPLITS, shuffle=True)
     auc_best = 0.0
     history_best = None
-    fpr_kt = None
-    tpr_kt = None
+    model_best = None
+    fpr_keras = None
+    tpr_keras = None
     all_auc = []
     for index, (train_indices, val_indices) in enumerate(skf.split(X, Y)):
         print("Training on fold " + str(index + 1) + "/10...")
@@ -143,7 +154,9 @@ def main():
         # Generate batches from indices
         xtrain, xval = X[train_indices], X[val_indices]
         ytrain, yval = Y[train_indices], Y[val_indices]
-
+        print(xval.shape)
+        x_main, x_mhc = split_acids_mhc(xtrain)
+        x_main_val, x_mhc_val = split_acids_mhc(xval)
         model = None
         model = create_model()
 
@@ -151,33 +164,41 @@ def main():
         print ("Training new iteration on " + str(xtrain.shape[0])\
               + " training samples, " + str(xval.shape[0]) + " validation samples, this may be a while...")
 
+        #end when loss func stops improving
         es = EarlyStopping(monitor='val_loss', mode='min', patience=3, verbose=1)
-        history = model.fit(xtrain, ytrain, epochs=EPOCHS, batch_size=32, validation_data=(xval, yval), callbacks=[es])
 
-        ypred = model.predict(xval).ravel()
+        history = model.fit([x_main, x_mhc], ytrain, epochs=EPOCHS, batch_size=96, validation_data=([x_main_val, x_mhc_val], yval), callbacks=[es])
+        ypred = model.predict([x_main_val, x_mhc_val]).ravel()
 
         fpr_k, tpr_k, threholds_k = roc_curve(yval, ypred)
         auc_k = auc(fpr_k, tpr_k)
 
         if auc_best < auc_k:
             history_best = history
-            fpr_kt = fpr_k
-            tpr_kt = tpr_k
+            fpr_keras = fpr_k
+            tpr_keras = tpr_k
             auc_best = auc_k
+            model_best = model
             print('NEW BEST MODEL HISTORY RECORDED')
 
         all_auc.append(auc_k)
 
+
+    # model.predict()
+
+    display_data(all_auc, auc_best, fpr_keras, history_best, tpr_keras)
+
+
+def display_data(all_auc, auc_best, fpr_keras, history_best, tpr_keras):
     print("AUC: %.2f%% (+/- %.2f%%)" % (np.mean(all_auc), np.std(all_auc)))
     plt.figure(1)
     plt.plot([0, 1], [0, 1], 'k--')
-    plt.plot(fpr_kt, tpr_kt, label='Keras (area = {:.3f})'.format(auc_best))
+    plt.plot(fpr_keras, tpr_keras, label='Keras (area = {:.3f})'.format(auc_best))
     plt.xlabel('False positive rate')
     plt.ylabel('True positive rate')
     plt.title('ROC curve')
     plt.legend(loc='best')
-
-    plt.figure(2)
+    plt.figure(1)
     N = np.arange(0, len(history_best.history["loss"]))
     plt.style.use("ggplot")
     plt.figure()
@@ -185,7 +206,7 @@ def main():
     plt.plot(N, history_best.history["val_loss"], label="val_loss")
     plt.plot(N, history_best.history["acc"], label="train_acc")
     plt.plot(N, history_best.history["val_acc"], label="val_acc")
-    plt.title("Training Loss and Accuracy (Simple NN)")
+    plt.title("Training Loss and Accuracy (best model)")
     plt.xlabel("Epoch #")
     plt.ylabel("Loss/Accuracy")
     plt.legend()
@@ -193,4 +214,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
