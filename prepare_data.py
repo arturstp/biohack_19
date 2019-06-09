@@ -8,6 +8,15 @@ from keras.layers import Dense, Activation, Embedding, Flatten
 from keras.callbacks import EarlyStopping
 import matplotlib.pyplot as plt
 
+def read_amino_acid_parametrs():
+    amino_acid_parametrs = pd.read_csv('data/amino_acid.csv')
+    arr = pd.DataFrame(amino_acid_parametrs, columns=['Litera', 'Alifatyczne', 'Zasadowe', 'Siarkowe', 'Lminokwasy', 'Kwasowe', 'Amidy', 'Aromatyczne', 'Grupa_OH', 'Universal'])
+    return arr
+
+
+def amino_acid_to_array(char):
+    arr =  np.array(read_amino_acid_parametrs().loc[read_amino_acid_parametrs().Litera == char])[:,1:]
+    return arr
 
 
 char_to_num = {
@@ -43,25 +52,25 @@ mhc_to_num = {
     'H2-Ld': 6
 }
 
-def amino_acid_to_array(char):
-    arr =  np.array(read_amino_acid_parametrs().loc[read_amino_acid_parametrs().Litera == char])[:,1:]
-    return arr
 
 
-def read_amino_acid_parametrs():
-    amino_acid_parametrs = pd.read_csv('data/amino_acid.csv')
-    arr = pd.DataFrame(amino_acid_parametrs, columns=['Litera', 'Alifatyczne', 'Zasadowe', 'Siarkowe', 'Lminokwasy', 'Kwasowe', 'Amidy', 'Aromatyczne', 'Grupa_OH', 'Universal'])
-    return arr
 
+#param count = 9
 
 
 def convertToNum(row):
-    peptide_in_num = np.zeros(len(row.loc['Peptide']))
+    peptide_in_num = np.empty((1, 0))
+    peptide_in_num.ravel()
+    # print(peptide_in_num.shape)
     text = row.loc['Peptide']
     i = 0
     for char in text:
-        peptide_in_num[i] = char_to_num[char]
+        a = char_to_num[char]
+        b = np.array(char_to_num[char])
+        b.ravel()
+        peptide_in_num = np.hstack((peptide_in_num, b))
         i += 1
+    # print(peptide_in_num)
     return np.concatenate((peptide_in_num, mhc_to_num[row.loc['MHC']], row.loc['Immunogenicity']), axis=None)
 
 
@@ -81,9 +90,11 @@ def get_inputs():
 
     add_zeros(all_data)
 
-    data_new = np.empty([all_data.shape[0], 13])  # get 13 not by constant! - and change
+    data_new = np.empty([all_data.shape[0], 101])  # get 13 not by constant! - and change/// 102 = 11x9 + mhc+react
     for index, row in all_data.iterrows():
         numbers = convertToNum(row)
+        # print(numbers)
+
         data_new[index] = numbers
 
     return data_new
@@ -92,16 +103,17 @@ def get_inputs():
 def create_model():
     model = Sequential()
     # add embedding
-    model.add(Embedding(21, 10, input_length=12))
+    # model.add(Embedding(21, 10, input_length=100))
     print('MODEL OUTPUT = ')
-    print(model.output_shape)
+    # print(model.output_shape)
     # model.add(Dense(22, input_dim=12, activation='relu'))
-    model.add(Flatten())
+    # model.add(Flatten())
     # model.add(Dropout(0.99))
     print('now after flatten: ')
     print('MODEL OUTPUT = ')
-    print(model.output_shape)
-    model.add(Dense(32, activation='relu'))
+    # print(model.output_shape)
+    model.add(Dense(32, activation='relu', input_dim=100))
+    # model.add(Dense(8, activation='relu'))
     print('now after dense:')
     print('MODEL OUTPUT = ')
     print(model.output_shape)
@@ -112,20 +124,12 @@ def create_model():
 
 
 def main():
-    EPOCHS = 10
+    EPOCHS = 12
     SPLITS = 10
     data = get_inputs()  #todo: pass filename
 
-    X = data[:, 0:12]
-    Y = data[:, 12]
-    train_data = data[:6000, :]
-    test_data = data[6000:, :]
-
-    train_X = train_data[:, 0:12]
-    train_Y = train_data[:, 12]
-
-    test_X = test_data[:, 0:12]
-    test_Y = test_data[:, 12]
+    X = data[:, 0:100]
+    Y = data[:, 100]
 
     skf = StratifiedKFold(n_splits=SPLITS, shuffle=True)
     auc_best = 0.0
